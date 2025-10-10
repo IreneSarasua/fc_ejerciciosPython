@@ -16,7 +16,8 @@ def randIP(hitza):
             pass
     if len(sol)>0:
         sol += "." + str(rt(0, 255)) + "."+str(rt(0, 255)) +"."+str(rt(0, 255))
-        return ipaddress.ip_address(sol)
+        '''return ipaddress.ip_address(sol)'''
+        return sol
     return ""
 
 print(randIP("a"))
