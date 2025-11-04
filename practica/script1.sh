@@ -35,7 +35,7 @@ function opcion1(){
 }
 
 function opcion2(){
-  printf "\n\n\033[0;32mHecho por Irene Sarasua. \n\nNo usar para fines ilegales.\033[0m"
+
 }
 function opcion3(){
   printf "\n\n\033[0;32mHecho por Irene Sarasua. \n\nNo usar para fines ilegales.\033[0m"
