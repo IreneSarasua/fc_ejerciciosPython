@@ -1,34 +1,22 @@
 #!/bin/bash
 
-# Variables para el color de la letra
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[0;33m'
-BLUE='\033[0;34m'
-NC='\033[0m' # No Color
-# Variables para el font de la letra
-bold=$(tput bold)
-normal=$(tput sgr0)
 
 
+function instalacionPaquetes(){
+# Instalación de los paquetes que se usan en el script
+sudo apt update # lo necesito?
 
+lista=(toilet figlet)
 
+for elem in "${lista[@]}"; do
+	if ! command -v "$elem" >/dev/null 2>&1; then #devuelve 0 si existe, 1 si no
+		sudo apt install $elem
+	fi
+done
 
-function menu() {
-echo -e "${YELLOW}"
-figlet -f standard.flf  -c Menu
-echo -e "${NC}"
-echo -e "
-${GREEN}1.${NC} Saludar
-${GREEN}2.${NC} Amálisis de logs
-${GREEN}3.${NC} Ataques de diccionarios
-${GREEN}4.${NC} Fingerprinting
-${GREEN}5.${NC} Footprinting
-${GREEN}6.${NC} Fuzzing
-${RED}7.${NC} Salir
-"
-printf "\033[0;33mElige una opción: \033[0m"
 }
+
+
 #Opciones menú Logs
 function logNginx() {
 
@@ -44,7 +32,7 @@ function logNginx() {
 function opcionSaludo(){
   figlet -f standard.flf  -c Holi
 
-  printf "\n\n\033[0;32mHecho por Irene Sarasua. \n\nNo usar para fines ilícitos.\033[0m"
+  printf "\n\n\033[0;32m %s \n\n\033[0;36m%s\033[0m\n" "$(toilet -f future "Hecho por Irene Sarasua" -F border)" "$(toilet -f future "No usar para fines ilícitos.")"
 }
 
 function opcionLog(){
@@ -89,7 +77,7 @@ function opcionDic(){
     printf "\033[0;32m 1.\033[0m Crear hash\n"
     printf "\033[0;32m 2.\033[0m Ataque de diccionario con John the Ripper\n"
     printf "\033[0;32m 3.\033[0m Ataque de diccionario con Hashcat\n"
-    printf "\033[0;32m 4.\033[0m Volver atrás\n"
+    printf "\033[0;32m 4.\033[0m Volver atrás\n \n"
     read -p "Elige una opción: " opcion
 
     case $opcion in
@@ -223,7 +211,16 @@ function main(){
   opcion=1
   until [ $opcion = "7" ]
   do
-    menu
+    printf "\033[0;33m%s \033[0m\n" "$(figlet -f standard.flf -c 'Menu')"
+    printf "\033[0;32m1. \033[0mSaludar  \n"
+    printf "\033[0;32m2. \033[0mAnálisis de logs\n"
+    printf "\033[0;32m3. \033[0mAtaques de diccionarios \n"
+    printf "\033[0;32m4. \033[0mFingerprinting  \n"
+    printf "\033[0;32m5. \033[0mFootprinting  \n"
+    printf "\033[0;32m6. \033[0mFuzzing  \n"
+    printf "\033[0;31m7. \033[0mSalir\n\n"
+
+    printf "\033[1;33mElige una opción: \033[0m"
     read -p "" opcion
 
     case $opcion in
@@ -247,7 +244,10 @@ function main(){
   done
 }
 
-main
+#instalacionPaquetes
+#main
+
+opcionLog
 
 
 
