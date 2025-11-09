@@ -1,12 +1,13 @@
 #!/bin/bash
 
 
+# Funciones complementarias
 
 function instalacionPaquetes(){
 # Instalación de los paquetes que se usan en el script
 sudo apt update # lo necesito?
 
-lista=(toilet figlet)
+lista=(toilet figlet john hashid openssl)
 
 for elem in "${lista[@]}"; do
 	if ! command -v "$elem" >/dev/null 2>&1; then #devuelve 0 si existe, 1 si no
@@ -16,6 +17,22 @@ for elem in "${lista[@]}"; do
 done
 
 }
+
+
+
+function buscarArchivo(){
+	mapfile -t archivo < <(sudo find / -type f -name "$1" 2>/dev/null) # para qe me guarde el resultado en un array
+       if  [[ ${#archivo[@]} > 0 ]]; then
+        echo "Se encontraron los siguientes archivos:"
+       for ruta in "${archivo[@]}"; do
+       	echo "$ruta"
+       done
+       else
+       	echo "No se encontraron archichivos con nombre ${1}"
+       fi
+}
+
+
 
 
 #Opciones menú Logs
@@ -105,6 +122,44 @@ function logApache() {
 }
 
 
+# Opciones menu diccionario
+function parteJohn(){
+
+    printf "\033[0;32m 1.\033[0m Diccionario password.lst (por defecto)\n"
+    printf "\033[0;32m 2.\033[0m Diccionario rockyou.txt\n"
+    printf "\033[0;32m 3.\033[0m Diccionario elotro.txt\n"
+    printf "\033[0;32m 4.\033[0m Otro\n \n"
+    read -p "Elige una opción: " opcion
+
+    case $opcion in
+      "2")
+      ruta1=/usr/share/wordlists/rockyou.txt
+
+        ;;
+      "3")
+      rutaDic=/usr/share/metasploit-framework/data/wordlists/password.lts
+
+      	;;
+      "4")
+	read -p "Escribe la ruta: " rutaDic
+      	;;
+      	*) # Opcion por defecto
+      	rutadic="/usr/share/john/password.lst"
+      ;;
+    esac
+
+    if [[ -e "$ruta1" && -f "$ruta1" && -s "$ruta1" && -r "$ruta1" ]]; then
+    	john --wordlist="$rutaDic" --format="$1" --pot=resutladoJhon.pot temp_hash.txt
+    else
+    	john --wordlist="/usr/share/john/password.lst" --format="$1" --pot="resutladoJhon.pot" temp_hash.txt
+    fi
+
+}
+
+
+
+
+
 # Opciones menú princpal
 function opcionSaludo(){
   figlet -f standard.flf  -c Holi
@@ -113,17 +168,7 @@ function opcionSaludo(){
 }
 
 
-function buscarArchivo(){
-	mapfile -t archivo < <(find / -type f -name "$1" 2>/dev/null) # para qe me guarde el resultado en un array
-       if  [[ ${#lista[@]} > 0 ]]; then
-        echo "Se encontraron los siguientes archivos:"
-       for ruta in "${archivo[@]}"; do
-       	echo "$ruta"
-       done
-       else
-       	echo "No se encontraron archichivos con nombre ${1}"
-       fi
-}
+
 
 function opcionLog(){
   opcion=1
@@ -145,8 +190,9 @@ function opcionLog(){
        printf "\n\033[0;31m Logs de Nginx\033[0m\n"
        buscarArchivo "nginx.log"
        read -p "Escribe la ruta del archivo: " ruta1
-        # Valido que exista, que es un archivo, que tiene contenido, que tenga permisos de lectura y que sea o .log o .txt
-        if [[ -e "$ruta1" && -f "$ruta1" && -s "$ruta1" && -r "$ruta1"  && "$ruta1" =~ \.(log|txt)$ ]]; then
+        # Valido que exista, que es un archivo, que tiene contenido, que tenga permisos de lectura
+        #Validar que sea o .log o .txt? && "$ruta1" =~ \.(log|txt)$
+        if [[ -e "$ruta1" && -f "$ruta1" && -s "$ruta1" && -r "$ruta1"  ]]; then
           echo "analizando..."
 
           logNginx $ruta1
@@ -158,8 +204,9 @@ function opcionLog(){
        printf "\n\033[0;31m Logs de Apache\033[0m\n"
        buscarArchivo "apache.log"
        read -p "Escribe la ruta del archivo: " ruta1
-        # Valido que exista, que es un archivo, que tiene contenido, que tenga permisos de lectura y que sea o .log o .txt
-        if [[ -e "$ruta1" && -f "$ruta1" && -s "$ruta1" && -r "$ruta1"  && "$ruta1" =~ \.(log|txt)$ ]]; then
+        # Valido que exista, que es un archivo, que tiene contenido, que tenga permisos de lectura
+        #Validar que sea o .log o .txt? && "$ruta1" =~ \.(log|txt)$
+        if [[ -e "$ruta1" && -f "$ruta1" && -s "$ruta1" && -r "$ruta1"   ]]; then
           echo "analizando..."
 
           logApache $ruta1
@@ -190,35 +237,78 @@ function opcionDic(){
     read -p "Elige una opción: " opcion
 
     case $opcion in
-      "1")echo "Sin desarrollar"
-        ;;
-      "2")
-        read -p "Introduce el hash --> " mihash
-        echo mihash > temp.txt
-        hashid mihash
-        declare -A dicAlgoritmos=([md5]="md5" [sha1]="raw-sha1" [sha256]="raw-sha256" [sha512]="raw-sha512")
-        cond1= true
-        while [ true ]; do
-            read -p "Introduce el algoritmo (md5, sha1, sha256, sha512 ...) --> " algoritmo
-            john --list=formats | grep -i $algoritmo
-            john --list=formats | grep -i "md" | cut  -d "," # ver por que no funciona
-            if [[ ${!dicAlgoritmos[@]} == *$algoritmo* ]]; then
-              cond1= false
+      "1")#Crear hash
+      printf "\n\033[0;31mCrear hash\033[0m\n"
+      read -p "Introduce el texto --> " texto
+      paraCifrar=(md4 md5 sha1 sha224 sha256 sha384 sha512)
+      cond1=true
+      while  $cond1 ; do
+      	read -p "Introduce el algoritmo (md4, md5, sha1, sha224, sha256, sha384, sha512 --> " algoritmo
+      	mapfile -t concide < <(printf '%s\n' "${paraCifrar[@]}" | grep -iE "^${algoritmo}\$" || true)
+
+
+            if [[ ${#concide[@]} -eq 1 && ${concide[0]} != "" ]]; then
+              cond1=false
             else
               echo "Opcion incorrecta. Vuelve a intentarlo.\n Quizas estes buscando: "
-              john --list=formats | grep -i $algoritmo  #pulir
+              mapfile -t posibilidades < <(printf '%s\n' "${paraCifrar[@]}" | grep -i -- "${algoritmo}" || true)
+
+              if [[ ${#posibilidades[@]} -eq 0 ]]; then
+              	printf '%s\n' "${paraCifrar[@]}"   | xargs
+              else
+                printf '%s\n' "${posibilidades[@]}" | xargs # xargs para que salgan seguidos
+              fi
+
             fi
-            echo "dentro "
-            echo  $algoritmo
+        done
+      printf '%s' "$texto" | openssl dgst -$algoritmo | awk '{print $NF}'
+        ;;
+      "2") # Ataque de diccionario con John the Ripper
+      printf "\n\033[0;31mAtaque de diccionario con John the Ripper\033[0m\n"
+        read -p "Introduce el hash --> " mihash
+        echo "$mihash" > temp_hash.txt
+        hashid "$mihash"
+        mapfile -t formatos_john < <(john --list=formats 2>/dev/null | tr ',' '\n' | sed 's/^[[:space:]]*//; s/[[:space:]]*$//' | sort -u)
+        cond1=true
+        while  $cond1 ; do
+            read -p "Introduce el algoritmo (md5, sha1, sha256, sha512 ...) --> " algoritmo
+
+
+            mapfile -t concide < <(printf '%s\n' "${formatos_john[@]}" | grep -iE "^${algoritmo}\$" || true)
+	    #mapfile -t matches < <(printf '%s\n' "${formatos_all[@]}" | grep -iE "${algoritmo}" || true)
+
+            if [[ ${#concide[@]} -eq 1 && ${concide[0]} != "" ]]; then
+              cond1=false
+            else
+              echo "Opcion incorrecta. Vuelve a intentarlo.\n Quizas estes buscando: "
+              mapfile -t posibilidades < <(printf '%s\n' "${formatos_john[@]}" | grep -i -- "${algoritmo}" || true)
+
+              if [[ ${#posibilidades[@]} -eq 0 ]]; then
+              	printf '%s\n' "${formatos_john[@]}"   | xargs
+              else
+                printf '%s\n' "${posibilidades[@]}" | xargs # xargs para que salgan seguidos
+              fi
+
+            fi
         done
 
-            echo "fuera "
-            echo  $algoritmo
+        parteJohn $algoritmo
+
+        john --show --pot=".resutladoJohn.pot" --format="$algoritmo"  temp_hash.txt
+        grep  -F -- "$miHash" ./resutladoJohn.pot | awk -F ":" 'print $2' | uniq
+
+        #grep  -F -- "$miHash" .resutladoJhon.pot
+        #recuperar la contraseña
+
+# Eliminar el archivo temoral del hash
+	rm temp_hash.txt
 
         ;;
-      "3")echo "Sin desarrollar"
+      "3")#Ataque de diccionario con Hashcat
+      printf "\n\033[0;31m Ataque de diccionario con Hashcat\033[0m\n"
+      echo "Sin desarrollar"
         ;;
-      "4")echo "Sin desarrollar"
+      "4")echo "Volviendo al menú principal"
         ;;
       *) echo "Opción incorrecta"
         ;;
@@ -356,8 +446,8 @@ function main(){
 #instalacionPaquetes
 #main
 
-opcionLog
-
+#opcionLog
+opcionDic
 
 
 
