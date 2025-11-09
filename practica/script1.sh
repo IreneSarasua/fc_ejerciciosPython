@@ -10,6 +10,7 @@ lista=(toilet figlet)
 
 for elem in "${lista[@]}"; do
 	if ! command -v "$elem" >/dev/null 2>&1; then #devuelve 0 si existe, 1 si no
+		#printf "instalando ${elem}..."
 		sudo apt install $elem
 	fi
 done
@@ -21,9 +22,85 @@ done
 function logNginx() {
 
   echo "Direcciones IP que han intentado realizar solicitudes a horas poco habituales y las horas:"
-  cat $1 | awk -F " " '{print $1, $4}' |  awk -F ":" '$2 <=6 {print}' | awk -F "[" '{print $1,$2}'
+  awk -F " " '{print $1, $4}' $1 |  awk -F ":" '$2 <=6 {print}' | awk -F "[" '{print $1,$2}' | sort
+  #otra manera
+  #awk '{split($4, t, ":"); if (t[2] <= 6)  print $1, substr(t[1], 2), t[2]":"t[3]":"t[4]}' "$1" | sort
+
+  echo "Direcciones IP que han intentado realizar solicitudes a horas poco habituales (solo IPs):"
+  awk -F " " '{print $1, $4}' $1 |  awk -F ":" '$2 <=6 {print}' | awk -F "[" '{print $1}' | sort | uniq
+
   echo "Direcciones IP que han intentado acceder a directorios sensibles:"
   cat $1 | grep -E "(/etc/passwd)|(/var/)|(/proc/)" | awk -F " " '{print $1}'
+
+  echo "Direcciones IP que han realizado intentos de acceso repetido a recursos inexistentes:"
+  awk -F " " '$9 == 404 {print $1}' "$1" | uniq | sort -nr
+
+  echo "IPs con muchos 500/502/503 (posible DoS o fallo backend):"
+  awk -F " " '$9 ~ /^50[0, 2, 3]$/  {print $1}' "$1" | uniq | sort -nr
+
+  echo "Direcciones IP que realizan un número elevado de solicitudes en un periodo corto:"
+  awk '{split($4, t, ":"); print $1, substr(t[1], 2), t[2]":"t[3]}' "$1" | sort | uniq -c | awk '$1 > 10 {print }' # miro si ha habido mas de 10 peticiones en un minuto de una misma ip
+
+  echo "Rutas con mayor tasa de error (4xx/5xx):"
+  # usar printf para poder sacar la tasa con decimales
+  # saco los 15 primeros pero podría sacar los que la tasa sea mayor a x
+  awk '{
+  ip = $1
+  tipo = $9
+  total[ip]++
+  if (tipo  ~ /^[45][0-9]{2}$/ ) err[ip]++
+
+  } END {
+
+  for (ip in total) {
+  	tasa = err[ip] / total[ip]
+  	printf "%-10.2f %-15s\n", tasa, ip
+  }
+}' "nginx.log" | sort -r | head -n 15
+
+
+#compleatr
+}
+function logApache() {
+
+  echo "Direcciones IP que han intentado realizar solicitudes a horas poco habituales y las horas:"
+  awk -F " " '{print $1, $4}' $1 |  awk -F ":" '$2 <=6 {print}' | awk -F "[" '{print $1,$2}' | sort
+  #otra manera
+  #awk '{split($4, t, ":"); if (t[2] <= 6)  print $1, substr(t[1], 2), t[2]":"t[3]":"t[4]}' "$1" | sort
+
+  echo "Direcciones IP que han intentado realizar solicitudes a horas poco habituales (solo IPs):"
+  awk -F " " '{print $1, $4}' $1 |  awk -F ":" '$2 <=6 {print}' | awk -F "[" '{print $1}' | sort | uniq
+
+  echo "Direcciones IP que han intentado acceder a directorios sensibles:"
+  cat $1 | grep -E "(/etc/passwd)|(/var/)|(/proc/)" | awk -F " " '{print $1}'
+
+  echo "Direcciones IP que han realizado intentos de acceso repetido a recursos inexistentes:"
+  awk -F " " '$9 == 404 {print $1}' "$1" | uniq | sort -nr
+
+  echo "IPs con muchos 500/502/503 (posible DoS o fallo backend):"
+  awk -F " " '$9 ~ /^50[0, 2, 3]$/  {print $1}' "$1" | uniq | sort -nr
+
+  echo "Direcciones IP que realizan un número elevado de solicitudes en un periodo corto:"
+  awk '{split($4, t, ":"); print $1, substr(t[1], 2), t[2]":"t[3]}' "$1" | sort | uniq -c | awk '$1 > 10 {print }' # miro si ha habido mas de 10 peticiones en un minuto de una misma ip
+
+  echo "Rutas con mayor tasa de error (4xx/5xx):"
+  # usar printf para poder sacar la tasa con decimales
+  # saco los 15 primeros pero podría sacar los que la tasa sea mayor a x
+  awk '{
+  ip = $1
+  tipo = $9
+  total[ip]++
+  if (tipo  ~ /^[45][0-9]{2}$/ ) err[ip]++
+
+  } END {
+
+  for (ip in total) {
+  	tasa = err[ip] / total[ip]
+  	printf "%-10.2f %-15s\n", tasa, ip
+  }
+}' "nginx.log" | sort -r | head -n 15
+
+
 #compleatr
 }
 
@@ -33,6 +110,19 @@ function opcionSaludo(){
   figlet -f standard.flf  -c Holi
 
   printf "\n\n\033[0;32m %s \n\n\033[0;36m%s\033[0m\n" "$(toilet -f future "Hecho por Irene Sarasua" -F border)" "$(toilet -f future "No usar para fines ilícitos.")"
+}
+
+
+function buscarArchivo(){
+	mapfile -t archivo < <(find / -type f -name "$1" 2>/dev/null) # para qe me guarde el resultado en un array
+       if  [[ ${#lista[@]} > 0 ]]; then
+        echo "Se encontraron los siguientes archivos:"
+       for ruta in "${archivo[@]}"; do
+       	echo "$ruta"
+       done
+       else
+       	echo "No se encontraron archichivos con nombre ${1}"
+       fi
 }
 
 function opcionLog(){
@@ -46,19 +136,38 @@ function opcionLog(){
     printf "\033[0;32m 3.\033[0m Volver atrás\n"
     read -p "Elige una opción: " opcion
 
+    #find -name nginx.log
+    mapfile -t logs < <(find / -type f -name "nginx.log" 2>/dev/null) # para qe me guarde el resultado en un array
+
+
     case $opcion in
       "1")#Opción Nginx
-        read -p "Escribe la ruta del archivo:" ruta1
-        if [[ -e "$ruta1" && -f "$ruta1" && -s "$ruta1" && -r "$ruta1" ]]; then
+       printf "\n\033[0;31m Logs de Nginx\033[0m\n"
+       buscarArchivo "nginx.log"
+       read -p "Escribe la ruta del archivo: " ruta1
+        # Valido que exista, que es un archivo, que tiene contenido, que tenga permisos de lectura y que sea o .log o .txt
+        if [[ -e "$ruta1" && -f "$ruta1" && -s "$ruta1" && -r "$ruta1"  && "$ruta1" =~ \.(log|txt)$ ]]; then
           echo "analizando..."
-          # Validar que sea un .log?
+
           logNginx $ruta1
         else
-          echo "Ruta incorrecta"
+          echo "Error: Comprueba la ruta."
         fi
         ;;
       "2")#Opción Apache
-        echo "Sin desarrollar"
+       printf "\n\033[0;31m Logs de Apache\033[0m\n"
+       buscarArchivo "apache.log"
+       read -p "Escribe la ruta del archivo: " ruta1
+        # Valido que exista, que es un archivo, que tiene contenido, que tenga permisos de lectura y que sea o .log o .txt
+        if [[ -e "$ruta1" && -f "$ruta1" && -s "$ruta1" && -r "$ruta1"  && "$ruta1" =~ \.(log|txt)$ ]]; then
+          echo "analizando..."
+
+          logApache $ruta1
+        else
+          echo "Error: Comprueba la ruta."
+        fi
+
+
         ;;
       "3")echo "Volviendo al menú principal"
         ;;
