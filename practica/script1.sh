@@ -7,7 +7,7 @@ function instalacionPaquetes(){
 # Instalación de los paquetes que se usan en el script
 sudo apt update # lo necesito?
 
-lista=(toilet figlet john hashid openssl hashcat)
+lista=(toilet figlet john hashid openssl hashcat fping nmap)
 
 for elem in "${lista[@]}"; do
 	if ! command -v "$elem" >/dev/null 2>&1; then #devuelve 0 si existe, 1 si no
@@ -405,6 +405,8 @@ function opcionFinger(){
   done
     case $opcion in
       "1")echo "Sin desarrollar"
+
+
         ;;
       "2")echo "Sin desarrollar"
         ;;
@@ -422,17 +424,12 @@ function opcionFoot(){
   do
     printf "\n\033[0;31m Footprinting\033[0m\n"
     printf "=======================================\n"
-    printf "\033[0;32m 1.\033[0m Con fping\n"
-    printf "\033[0;32m 2.\033[0m Con nmap\n"
-    printf "\033[0;32m 3.\033[0m Lanzar script (con nmap)\n"
-    printf "\033[0;32m 4.\033[0m Volver atrás\n"
+    printf "\033[0;32m 1.\033[0m Metadatos de los ficheros de la ruta actual\n"
+    printf "\033[0;32m 2.\033[0m Metdatos de ruta específica\n"
+    printf "\033[0;32m 3.\033[0m Metadatos de fichero específico)\n"
+    printf "\033[0;32m 4.\033[0m (Extra) Editar metadatos\n"
+    printf "\033[0;32m 5.\033[0m Volver atrás\n"
     read -p "Elige una opción: " opcion
-    printf "\n\n\033[0;321.\m033[0m Metadatos de los ficheros de la ruta actual\n
-    \033[0;322.\m033[0m Metdatos de ruta específica\n
-    \033[0;323.\m033[0m Metadatos de fichero específico\n
-    \033[0;324.\m033[0m (Extra) Editar metadatos\n
-    \033[0;325.\m033[0m Volver atrás\n"
-    read -p "Elige una opción:" opcion
 
   done
     case $opcion in
@@ -456,6 +453,8 @@ function opcionFUZZ(){
   opcion=1
   until [ $opcion = "4" ]
   do
+    printf "\n\033[0;31mFuzzing\033[0m\n"
+    printf "=======================================\n"
     printf "\n\n\033[0;321.\m033[0m Fuzzing con Wfuzz\n
     \033[0;322.\m033[0m Fuzzing con ffuf\n
     \033[0;323.\m033[0m Nikto\n
@@ -519,8 +518,8 @@ function main(){
 #main
 
 #opcionLog
-opcionDic
-
+#opcionDic
+opcionFinger
 
 
 
