@@ -7,7 +7,7 @@ function instalacionPaquetes(){
 # Instalación de los paquetes que se usan en el script
 sudo apt update # lo necesito?
 
-lista=(toilet figlet john hashid openssl)
+lista=(toilet figlet john hashid openssl hashcat)
 
 for elem in "${lista[@]}"; do
 	if ! command -v "$elem" >/dev/null 2>&1; then #devuelve 0 si existe, 1 si no
@@ -149,9 +149,42 @@ function parteJohn(){
     esac
 
     if [[ -e "$ruta1" && -f "$ruta1" && -s "$ruta1" && -r "$ruta1" ]]; then
-    	john --wordlist="$rutaDic" --format="$1" --pot=resutladoJhon.pot temp_hash.txt
+    	john --wordlist="$rutaDic" --format="$1" --pot=resutladoJohn.pot temp_hash.txt
     else
-    	john --wordlist="/usr/share/john/password.lst" --format="$1" --pot="resutladoJhon.pot" temp_hash.txt
+    	john --wordlist="/usr/share/john/password.lst" --format="$1" --pot="resutladoJohn.pot" temp_hash.txt
+    fi
+
+}
+
+function parteHashcat(){
+
+    printf "\033[0;32m 1.\033[0m Diccionario password.lst (por defecto)\n"
+    printf "\033[0;32m 2.\033[0m Diccionario rockyou.txt\n"
+    printf "\033[0;32m 3.\033[0m Diccionario elotro.txt\n"
+    printf "\033[0;32m 4.\033[0m Otro\n \n"
+    read -p "Elige una opción: " opcion
+
+    case $opcion in
+      "2")
+      ruta1=/usr/share/wordlists/rockyou.txt
+
+        ;;
+      "3")
+      rutaDic=/usr/share/metasploit-framework/data/wordlists/password.lts
+
+      	;;
+      "4")
+	read -p "Escribe la ruta: " rutaDic
+      	;;
+      	*) # Opcion por defecto
+      	rutadic="/usr/share/john/password.lst"
+      ;;
+    esac
+
+    if [[ -e "$ruta1" && -f "$ruta1" && -s "$ruta1" && -r "$ruta1" ]]; then
+    	hashcat -m "$1" --outfile resultadoHashcat.txt -a 0 temp_hash.txt "$rutaDic" --show
+    else
+    	hashcat -m "$1" --outfile resultadoHashcat.txt -a 0 temp_hash.txt /usr/share/john/password.lst --show
     fi
 
 }
@@ -275,7 +308,7 @@ function opcionDic(){
 
 
             mapfile -t concide < <(printf '%s\n' "${formatos_john[@]}" | grep -iE "^${algoritmo}\$" || true)
-	    #mapfile -t matches < <(printf '%s\n' "${formatos_all[@]}" | grep -iE "${algoritmo}" || true)
+	    #mapfile -t coincide < <(printf '%s\n' "${formatos_john[@]}" | grep -iE "${algoritmo}" || true)
 
             if [[ ${#concide[@]} -eq 1 && ${concide[0]} != "" ]]; then
               cond1=false
@@ -295,9 +328,9 @@ function opcionDic(){
         parteJohn $algoritmo
 
         john --show --pot=".resutladoJohn.pot" --format="$algoritmo"  temp_hash.txt
-        grep  -F -- "$miHash" ./resutladoJohn.pot | awk -F ":" 'print $2' | uniq
+        grep  -F -- "$miHash" resutladoJohn.pot | awk -F ":" '{print $2}' | uniq
 
-        #grep  -F -- "$miHash" .resutladoJhon.pot
+        #grep  -F -- "$miHash" .resutladoJohn.pot
         #recuperar la contraseña
 
 # Eliminar el archivo temoral del hash
@@ -306,7 +339,46 @@ function opcionDic(){
         ;;
       "3")#Ataque de diccionario con Hashcat
       printf "\n\033[0;31m Ataque de diccionario con Hashcat\033[0m\n"
-      echo "Sin desarrollar"
+      read -p "Introduce el hash --> " mihash
+      echo "$mihash" > temp_hash.txt
+      hashid "$mihash"
+      # para quedarnos solo con la seccion de los hashs
+      #las lineas que empiezan por esacios en blanco y números
+       # nos quedamos con la primera columna sin los espacios vacios
+      mapfile -t formatos_hashcat < <( hashcat --help \
+  | awk '/- \[ Hash modes \] -/{flag=1;next}/^- \[/{flag=0}flag' \
+  | grep -E '^[[:space:]]*[0-9]+' \
+  | awk -F'|' '{gsub(/^[ \t]+|[ \t]+$/, "", $1); print $1}')
+
+	cond1=true
+        while  $cond1 ; do
+            read -p "Introduce el número que corresponda con un algoritmo (md5 = 0, sha1 = 100, sha256 = 1400 ...) --> " algoritmo
+
+
+            mapfile -t concide < <(printf '%s\n' "${formatos_hashcat[@]}" | grep -iE "^${algoritmo}\$" || true)
+
+
+            if [[ ${#concide[@]} -eq 1 && ${concide[0]} != "" ]]; then
+              cond1=false
+            else
+              echo "Opcion incorrecta. Vuelve a intentarlo.\n Quizas estes buscando: "
+              mapfile -t posibilidades < <( hashcat --help \
+  | awk '/- \[ Hash modes \] -/{flag=1;next}/^- \[/{flag=0}flag' \
+  | grep -E '^[[:space:]]*[0-9]+' \
+  | grep -i "$algoritmo"  )
+
+              if [[ ${#posibilidades[@]} -eq 0 ]]; then
+              	printf '%s\n' "${hashcat --help | awk '/- \[ Hash modes \] -/{flag=1;next}/^- \[/{flag=0}flag' | grep -E '^[[:space:]]*[0-9]+']}"
+              else
+                printf '%s\n' "${posibilidades[@]}"
+              fi
+
+            fi
+        done
+
+      parteHashcat $algoritmo
+      #hashcat -m 100 --outfile resultadoHashcat.txt -a 0 temp_hash.txt /usr/share/john/password.lst --show
+      grep  -F -- "$miHash" resultadoHashcat.txt | awk -F ":" '{print $2}' | uniq
         ;;
       "4")echo "Volviendo al menú principal"
         ;;
