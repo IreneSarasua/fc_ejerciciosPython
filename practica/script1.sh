@@ -7,7 +7,7 @@ function instalacionPaquetes(){
 # Instalación de los paquetes que se usan en el script
 sudo apt update # lo necesito?
 
-lista=(toilet figlet john hashid openssl hashcat fping nmap)
+lista=(toilet figlet john hashid openssl hashcat fping nmap wfuzz ffuf nikto libimage-exiftool-perl)
 
 for elem in "${lista[@]}"; do
 	if ! command -v "$elem" >/dev/null 2>&1; then #devuelve 0 si existe, 1 si no
@@ -389,11 +389,15 @@ function opcionDic(){
   done
 }
 
+      # ^(?:(25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])\.){3}(25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])$
+      # /\b((?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)+(?:\/{1}((?:[0-9])|(?:[1-2][0-9])|(?:3[0-2]))\b)?)|((?:[a-f0-9:]+:+)+(?:[a-f0-9])+(?:\/{1}((?:(?:3[0-2]|[12]?\d)))\b)?)/gm   https://regex101.com/library/lKzPHl?orderBy=MOST_UPVOTES&page=5&search=ip
+
 function opcionFinger(){
+  regexIp='^((25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])\.){3}(25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])(/(3[0-2]|[12]?[0-9]))?$'
   opcion=1
   until [ $opcion = "4" ]
   do
-    printf "\n\033[0;31m Fingerprinting\033[0m\n"
+    printf "\n\033[0;31mFingerprinting\033[0m\n"
     printf "=======================================\n"
     printf "\033[0;32m 1.\033[0m Con fping\n"
     printf "\033[0;32m 2.\033[0m Con nmap\n"
@@ -402,50 +406,170 @@ function opcionFinger(){
     read -p "Elige una opción: " opcion
 
 
-  done
     case $opcion in
-      "1")echo "Sin desarrollar"
+      "1")
+      #Con fping
+      printf "\n\033[0;31mFingerprinting con fping\033[0m\n"
+      read -p "Introduce la IP --> " miIp
+
+      if [[ $miIp =~ $regexIp ]]; then
+
+      read -p "Introduce atributos adiconales correctamente --> " atrFping
+      #validar como los algoritmos o no hace falta?
+
+      fping $atrFping  -g "$miIp" 2>/dev/null | grep -i "alive"
+
+
+
+      else
+      	echo "No era una IP válida."
+      fi
 
 
         ;;
-      "2")echo "Sin desarrollar"
+      "2")
+      #Con nmap
+      printf "\n\033[0;31mFingerprinting con nmap\033[0m\n"
+      read -p "Introduce la IP --> " miIp
+
+      if [[ $miIp =~ $regexIp ]]; then
+
+
+      nmap "$miIp" > "${miIp}.txt"
+
+      echo "Puertos aiertos de la IP: $miIp"
+      grep -i "open"  "${miIp}.txt"
+
+      else
+      	echo "No era una IP válida."
+      fi
+
         ;;
-      "3")echo "Sin desarrollar"
+      "3")
+      #Con scrit y nmap
+      printf "\n\033[0;31mFingerprinting con script y nmap\033[0m\n"
+      echo "Sin desarrollar"
+      # vale, no he entendido que se pide...
+
+
         ;;
-      "4")echo "Sin desarrollar"
+      "4")
+      echo "Volviendo al menú principal"
         ;;
-      *) echo "Opción incorrecta"
+      *)
+      echo "Opción incorrecta"
         ;;
     esac
+
+
+    done
+
 }
 
 function opcionFoot(){
   until [ $opcion = "5" ]
   do
-    printf "\n\033[0;31m Footprinting\033[0m\n"
+    printf "\n\033[0;31mFootprinting\033[0m\n"
     printf "=======================================\n"
     printf "\033[0;32m 1.\033[0m Metadatos de los ficheros de la ruta actual\n"
     printf "\033[0;32m 2.\033[0m Metdatos de ruta específica\n"
-    printf "\033[0;32m 3.\033[0m Metadatos de fichero específico)\n"
+    printf "\033[0;32m 3.\033[0m Metadatos de fichero específico\n"
     printf "\033[0;32m 4.\033[0m (Extra) Editar metadatos\n"
     printf "\033[0;32m 5.\033[0m Volver atrás\n"
     read -p "Elige una opción: " opcion
 
-  done
+
+# mirar tambien subdirectorios con -r?
+#no mostrar los unreadbles con grep?
     case $opcion in
-      "1")echo "Sin desarrollar"
+      "1")
+      printf "\n\033[0;31mMetadatos de los ficheros de la ruta actual\033[0m\n"
+      exiftool .
         ;;
-      "2")echo "Sin desarrollar"
+      "2")
+      printf "\n\033[0;31mMetdatos de ruta específica\033[0m\n"
+      read -p "Escribe la ruta: " ruta1
+        # Valido que exista, que es un directorio, que tenga permisos de lectura
+        if [[ -e "$ruta1" && -d "$ruta1" && -r "$ruta1"  ]]; then
+        	exiftool "$ruta1"
+        else
+        	echo "Error: Comprueba la ruta. Recuerda que debes tener permisos de lectura."
+        fi
         ;;
-      "3")echo "Sin desarrollar"
+      "3")
+      printf "\n\033[0;31mMetadatos de fichero específico\033[0m\n"
+      read -p "Escribe la ruta: " ruta1
+        # Valido que exista, que es un archivo, que tenga permisos de lectura
+        if [[ -e "$ruta1" && -f "$ruta1" &&  -r "$ruta1"  ]]; then
+        	exiftool "$ruta1"
+        else
+        	echo "Error: Comprueba la ruta del archivo. Recuerda que debes tener permisos de lectura."
+        fi
         ;;
-      "4")echo "Sin desarrollar"
+      "4")
+
+      # Editar los metadatos existentes o añador tambien metadatos? NEcesito permiso de escritura?
+      printf "\n\033[0;31m(Extra) Editar metadatos\033[0m\n"
+      read -p "Escribe la ruta: " ruta1
+        # Valido que exista, que es un archivo, que tenga permisos de lectura
+      if [[ -e "$ruta1" && -f "$ruta1" &&  -r "$ruta1"  ]]; then
+
+      #parte elegir un atributo
+      #exiftool -listw
+
+      	mapfile -t atrTodos < <(exiftool "$ruta1" | awk -F ":" '{gsub(/^[ \t]+|[ \t]+$/, "", $1); print $1}')
+      	# que al menos haya un atributo
+      	if [[ ${#atrTodos[@]} -ge 1 && ${atrTodos[0]} != "" ]]; then
+
+
+
+	cond1=true
+        while  $cond1 ; do
+        read -p "Introduce el metadato a modificar (case senitive) --> " atrMod
+      	mapfile -t concide < <(printf '%s\n' "${atrTodos[@]}" | grep -E "^${atrMod}\$" || true)
+
+            if [[ ${#concide[@]} -eq 1 && ${concide[0]} != "" ]]; then
+              cond1=false
+            else
+              echo "Opcion incorrecta. Vuelve a intentarlo.\n Quizas estes buscando: "
+              mapfile -t posibilidades < <(printf '%s\n' "${atrTodos[@]}" | grep -i -- "${atrMod}" || true)
+
+              if [[ ${#posibilidades[@]} -eq 0 ]]; then
+              	printf '%s\n' "${atrTodos[@]}"
+              else
+                printf '%s\n' "${posibilidades[@]}"
+              fi
+
+            fi
+        done
+        fi
+
+        read -p "Introduce el nuevo valor para el metadato $atrMod --> " atrMOdVal
+
+        read -p "¿Seuro qué quieres cambiar el valor del metadato $atrMod con \"$artModVal\"? (s/N)--> " confirmar
+
+        if [[ $confirmar =~ ^(s|S)$ ]]; then
+        	exiftool "-$artMod=$artModVal" -overwrite_original "$ruta1"
+
+        else
+        	echo "Se cancelo la modificación"
+
+        fi
+
+
+      else
+      	echo "Error: Comprueba la ruta del archivo. Recuerda que debes tener permisos de lectura."
+      fi
+
+
         ;;
-      "5")echo "Sin desarrollar"
+      "5")
+      echo "Volviendo al menú principal"
         ;;
       *) echo "Opción incorrecta"
         ;;
     esac
+      done
 
 }
 
@@ -519,7 +643,9 @@ function main(){
 
 #opcionLog
 #opcionDic
-opcionFinger
+#opcionFinger
+opcionFoot
+#opcionFUZZ
 
 
 
