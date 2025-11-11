@@ -655,13 +655,14 @@ function main(){
   done
 }
 
-#instalacionPaquetes
-#main
+instalacionPaquetes
+main
 
+#Para ir probando los modulos específicos
 #opcionLog
 #opcionDic
 #opcionFinger
-opcionFoot
+#opcionFoot
 #opcionFUZZ
 
 
