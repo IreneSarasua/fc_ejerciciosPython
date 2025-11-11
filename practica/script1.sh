@@ -488,7 +488,7 @@ function opcionFoot(){
         ;;
       "2")
       printf "\n\033[0;31mMetdatos de ruta específica\033[0m\n"
-      read -p "Escribe la ruta: " ruta1
+      read -p "Escribe la ruta del directorio: " ruta1
         # Valido que exista, que es un directorio, que tenga permisos de lectura
         if [[ -e "$ruta1" && -d "$ruta1" && -r "$ruta1"  ]]; then
         	exiftool "$ruta1"
@@ -498,27 +498,34 @@ function opcionFoot(){
         ;;
       "3")
       printf "\n\033[0;31mMetadatos de fichero específico\033[0m\n"
-      read -p "Escribe la ruta: " ruta1
+      read -p "Escribe la ruta del archivo: " ruta1
         # Valido que exista, que es un archivo, que tenga permisos de lectura
-        if [[ -e "$ruta1" && -f "$ruta1" &&  -r "$ruta1"  ]]; then
+        if [[ -e "$ruta1" && -f "$ruta1" &&  -r "$ruta1"  && -w "$rura1" ]]; then
         	exiftool "$ruta1"
         else
-        	echo "Error: Comprueba la ruta del archivo. Recuerda que debes tener permisos de lectura."
+        	echo "Error: Comprueba la ruta del archivo. Recuerda que debes tener permisos de lectura y escritura."
         fi
         ;;
       "4")
 
       # Editar los metadatos existentes o añador tambien metadatos? NEcesito permiso de escritura?
+      #pero no se cual es esl tag que necsito
       printf "\n\033[0;31m(Extra) Editar metadatos\033[0m\n"
-      read -p "Escribe la ruta: " ruta1
+      read -p "Escribe la ruta del archivo: " ruta1
         # Valido que exista, que es un archivo, que tenga permisos de lectura
       if [[ -e "$ruta1" && -f "$ruta1" &&  -r "$ruta1"  ]]; then
 
       #parte elegir un atributo
       #exiftool -listw
+      # mapfile -t atrTodos < <(exiftool "$ruta1" | awk -F ":" '{gsub(/^[ \t]+|[ \t]+$/, "", $1); print $1}')
 
-      	mapfile -t atrTodos < <(exiftool "$ruta1" | awk -F ":" '{gsub(/^[ \t]+|[ \t]+$/, "", $1); print $1}')
-      	# que al menos haya un atributo
+      	mapfile -t atrTodos < <(exiftool -listw 2>/dev/null \
+  | tail -n +2 \
+  | tr ' ' '\n' \
+  | sed '/^$/d' \
+  | sort -u)
+
+      	# que al menos haya un atributo, diría que ya no tengo ese problema, pero no esta dde más
       	if [[ ${#atrTodos[@]} -ge 1 && ${atrTodos[0]} != "" ]]; then
 
 
@@ -544,12 +551,12 @@ function opcionFoot(){
         done
         fi
 
-        read -p "Introduce el nuevo valor para el metadato $atrMod --> " atrMOdVal
+        read -p "Introduce el nuevo valor para el metadato $atrMod --> " atrModVal
 
-        read -p "¿Seuro qué quieres cambiar el valor del metadato $atrMod con \"$artModVal\"? (s/N)--> " confirmar
+        read -p "¿Seuro qué quieres cambiar el valor del metadato $atrMod con \"$atrModVal\"? (s/N)--> " confirmar
 
         if [[ $confirmar =~ ^(s|S)$ ]]; then
-        	exiftool "-$artMod=$artModVal" -overwrite_original "$ruta1"
+        	exiftool "-${atrMod}=${atrModVal}" -overwrite_original "$ruta1"
 
         else
         	echo "Se cancelo la modificación"
@@ -586,13 +593,23 @@ function opcionFUZZ(){
     read -p "Elige una opción:" opcion
 
     case $opcion in
-      "1")echo "Sin desarrollar"
+      "1")printf "\n\033[0;31mFuzzing con Wfuzz\033[0m\nLos resultados se guardaran en resultadoWfuzz.txt\n"
+      read -p "Escribe la URL del objetivo: " ruta1
+
+      wfuzz -c -z file,/usr/share/wfuzz/wordlist/general/common.txt --sc 200,301,302,401,403,500,404   -u "${ruta1%/}/FUZZ"   -f "resultadoWfuzz.txt,txt"   | tee "resultadoWfuzz.log"
         ;;
-      "2")echo "Sin desarrollar"
+      "2")printf "\n\033[0;31mFuzzing con ffuf\033[0m\nLos resultados se guardaran en resultadoffuf.txt\n"
+      read -p "Escribe la URL del objetivo: " ruta1
+
+      ffuf -c -w /usr/share/wfuzz/wordlist/general/common.txt -mc 200,301,302,401,403,500,404   -u "${ruta1%/}/FUZZ"   -o "resultadoffuf.txt,txt"   | tee "resultadoffuf.log"
         ;;
-      "3")echo "Sin desarrollar"
+      "3")printf "\n\033[0;31mNikto\033[0m\nLos resultados se guardaran en resultadoNikto.txt\n"
+      read -p "Escribe el host/URL del objetivo: " ruta1
+
+      nikto -h "$ruta1" -o resultadoNikto.txt
         ;;
-      "4")echo "Sin desarrollar"
+      "4")
+      echo "Volviendo al menú principal"
         ;;
       *) echo "Opción incorrecta"
         ;;
