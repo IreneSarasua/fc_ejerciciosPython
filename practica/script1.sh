@@ -5,13 +5,13 @@
 
 function instalacionPaquetes(){
 # Instalación de los paquetes que se usan en el script
-sudo apt update # lo necesito?
+#sudo apt update
 
-lista=(toilet figlet john hashid openssl hashcat fping nmap wfuzz ffuf nikto libimage-exiftool-perl)
+lista=(toilet figlet john hashid openssl hashcat fping nmap wfuzz ffuf nikto libimage-exiftool-perl wordlists)
 
 for elem in "${lista[@]}"; do
+	# echo $elem
 	if ! command -v "$elem" >/dev/null 2>&1; then #devuelve 0 si existe, 1 si no
-		#printf "instalando ${elem}..."
 		sudo apt install $elem
 	fi
 done
@@ -38,27 +38,36 @@ function buscarArchivo(){
 #Opciones menú Logs
 function logNginx() {
 
-  echo "Direcciones IP que han intentado realizar solicitudes a horas poco habituales y las horas:"
-  awk -F " " '{print $1, $4}' $1 |  awk -F ":" '$2 <=6 {print}' | awk -F "[" '{print $1,$2}' | sort
+  #echo "Direcciones IP que han intentado realizar solicitudes a horas poco habituales y las horas:"
+  #awk -F " " '{print $1, $4}' $1 |  awk -F ":" '$2 <=6 {print}' | awk -F "[" '{print $1,$2}' | sort
   #otra manera
   #awk '{split($4, t, ":"); if (t[2] <= 6)  print $1, substr(t[1], 2), t[2]":"t[3]":"t[4]}' "$1" | sort
 
   echo "Direcciones IP que han intentado realizar solicitudes a horas poco habituales (solo IPs):"
+  echo "----------------------------------------------"
   awk -F " " '{print $1, $4}' $1 |  awk -F ":" '$2 <=6 {print}' | awk -F "[" '{print $1}' | sort | uniq
 
   echo "Direcciones IP que han intentado acceder a directorios sensibles:"
-  cat $1 | grep -E "(/etc/passwd)|(/var/)|(/proc/)" | awk -F " " '{print $1}'
+  echo "----------------------------------------------"
+  cat $1 | grep -E "(/etc/passwd)|(/var/)|(/proc/)" | awk -F " " '{print $1}' | sort | uniq
+
 
   echo "Direcciones IP que han realizado intentos de acceso repetido a recursos inexistentes:"
-  awk -F " " '$9 == 404 {print $1}' "$1" | uniq | sort -nr
+  echo "----------------------------------------------"
+  # sort -r reverso, -n numerico
+  awk -F " " '$9 == 404 {print $1}' "$1" | sort -nr | uniq
+
 
   echo "IPs con muchos 500/502/503 (posible DoS o fallo backend):"
-  awk -F " " '$9 ~ /^50[0, 2, 3]$/  {print $1}' "$1" | uniq | sort -nr
+  echo "----------------------------------------------"
+  awk -F " " '$9 ~ /^50[0, 2, 3]$/  {print $1}' "$1" | sort -nr | uniq
 
   echo "Direcciones IP que realizan un número elevado de solicitudes en un periodo corto:"
-  awk '{split($4, t, ":"); print $1, substr(t[1], 2), t[2]":"t[3]}' "$1" | sort | uniq -c | awk '$1 > 10 {print }' # miro si ha habido mas de 10 peticiones en un minuto de una misma ip
+  echo "----------------------------------------------"
+  awk '{split($4, t, ":"); print $1, substr(t[1], 2), t[2]":"t[3]}' "$1" | sort | uniq -c | awk '$1 > 4 {print }' # miro si ha habido mas de 5 peticiones en un minuto de una misma ip
 
   echo "Rutas con mayor tasa de error (4xx/5xx):"
+  echo "----------------------------------------------"
   # usar printf para poder sacar la tasa con decimales
   # saco los 15 primeros pero podría sacar los que la tasa sea mayor a x
   awk '{
@@ -76,49 +85,19 @@ function logNginx() {
 }' "nginx.log" | sort -r | head -n 15
 
 
-#compleatr
 }
 function logApache() {
 
-  echo "Direcciones IP que han intentado realizar solicitudes a horas poco habituales y las horas:"
-  awk -F " " '{print $1, $4}' $1 |  awk -F ":" '$2 <=6 {print}' | awk -F "[" '{print $1,$2}' | sort
-  #otra manera
-  #awk '{split($4, t, ":"); if (t[2] <= 6)  print $1, substr(t[1], 2), t[2]":"t[3]":"t[4]}' "$1" | sort
-
-  echo "Direcciones IP que han intentado realizar solicitudes a horas poco habituales (solo IPs):"
-  awk -F " " '{print $1, $4}' $1 |  awk -F ":" '$2 <=6 {print}' | awk -F "[" '{print $1}' | sort | uniq
-
-  echo "Direcciones IP que han intentado acceder a directorios sensibles:"
-  cat $1 | grep -E "(/etc/passwd)|(/var/)|(/proc/)" | awk -F " " '{print $1}'
-
-  echo "Direcciones IP que han realizado intentos de acceso repetido a recursos inexistentes:"
-  awk -F " " '$9 == 404 {print $1}' "$1" | uniq | sort -nr
-
-  echo "IPs con muchos 500/502/503 (posible DoS o fallo backend):"
-  awk -F " " '$9 ~ /^50[0, 2, 3]$/  {print $1}' "$1" | uniq | sort -nr
+ echo "Direcciones IP que han intentado realizar solicitudes a horas poco habituales (solo IPs):"
+  echo "----------------------------------------------"
+  awk 'int(substr($3, 0, 2)) <=6 {print}' $1 | grep -i "from" | awk -F "from" '{print $2}' | awk -F " " '{print $1}' | sort | uniq
 
   echo "Direcciones IP que realizan un número elevado de solicitudes en un periodo corto:"
-  awk '{split($4, t, ":"); print $1, substr(t[1], 2), t[2]":"t[3]}' "$1" | sort | uniq -c | awk '$1 > 10 {print }' # miro si ha habido mas de 10 peticiones en un minuto de una misma ip
-
-  echo "Rutas con mayor tasa de error (4xx/5xx):"
-  # usar printf para poder sacar la tasa con decimales
-  # saco los 15 primeros pero podría sacar los que la tasa sea mayor a x
-  awk '{
-  ip = $1
-  tipo = $9
-  total[ip]++
-  if (tipo  ~ /^[45][0-9]{2}$/ ) err[ip]++
-
-  } END {
-
-  for (ip in total) {
-  	tasa = err[ip] / total[ip]
-  	printf "%-10.2f %-15s\n", tasa, ip
-  }
-}' "nginx.log" | sort -r | head -n 15
+  echo "----------------------------------------------"
+ grep -i "from" "$1" | awk -F "from" '{print $2, $1}' | awk '{split($7, t, ":"); print $1, $5, $6, t[1]":"t[2]}' | sort | uniq -c | awk '$1 > 4 {print }'
+ # miro si ha habido mas de 5 peticiones en un minuto de una misma ip
 
 
-#compleatr
 }
 
 
@@ -127,64 +106,71 @@ function parteJohn(){
 
     printf "\033[0;32m 1.\033[0m Diccionario password.lst (por defecto)\n"
     printf "\033[0;32m 2.\033[0m Diccionario rockyou.txt\n"
-    printf "\033[0;32m 3.\033[0m Diccionario elotro.txt\n"
+    printf "\033[0;32m 3.\033[0m Otro diccionario de wordlists\n"
     printf "\033[0;32m 4.\033[0m Otro\n \n"
-    read -p "Elige una opción: " opcion
+    read -p "Elige una opción: " opcionJohn
 
-    case $opcion in
+    case $opcionJohn in
       "2")
-      ruta1=/usr/share/wordlists/rockyou.txt
+      # sudo gunzip -k rockyou.txt.gz para descomrimirlo...
+
+      rutaDic=/usr/share/wordlists/rockyou.txt
 
         ;;
       "3")
-      rutaDic=/usr/share/metasploit-framework/data/wordlists/password.lts
+
+      rutaDic=/usr/share/wordlists/wifite.txt
 
       	;;
       "4")
 	read -p "Escribe la ruta: " rutaDic
       	;;
+
       	*) # Opcion por defecto
-      	rutadic="/usr/share/john/password.lst"
+      	rutaDic="/usr/share/john/password.lst"
       ;;
     esac
 
-    if [[ -e "$ruta1" && -f "$ruta1" && -s "$ruta1" && -r "$ruta1" ]]; then
-    	john --wordlist="$rutaDic" --format="$1" --pot=resutladoJohn.pot temp_hash.txt
+    if [[ -e "$rutaDic" && -f "$rutaDic" && -s "$rutaDic" && -r "$rutaDic" ]]; then
+    	john --wordlist="$rutaDic" --format="$1" --pot="resultadoJohn.pot" temp_hash.txt
+    	echo "" > resultadoJohn.pot
     else
-    	john --wordlist="/usr/share/john/password.lst" --format="$1" --pot="resutladoJohn.pot" temp_hash.txt
+    	echo "No se pudo ejecutar hashcat. Error al leer el diccionario."
     fi
 
 }
 
+#hashcat (v6.2.6)
 function parteHashcat(){
 
     printf "\033[0;32m 1.\033[0m Diccionario password.lst (por defecto)\n"
     printf "\033[0;32m 2.\033[0m Diccionario rockyou.txt\n"
     printf "\033[0;32m 3.\033[0m Diccionario elotro.txt\n"
     printf "\033[0;32m 4.\033[0m Otro\n \n"
-    read -p "Elige una opción: " opcion
+    read -p "Elige una opción: " opcionCat
 
-    case $opcion in
+    case $opcionCat in
       "2")
-      ruta1=/usr/share/wordlists/rockyou.txt
+      rutaDic=/usr/share/wordlists/rockyou.txt
 
         ;;
       "3")
-      rutaDic=/usr/share/metasploit-framework/data/wordlists/password.lts
+      rutaDic=/usr/share/wordlists/wifite.txt
 
       	;;
       "4")
 	read -p "Escribe la ruta: " rutaDic
       	;;
       	*) # Opcion por defecto
-      	rutadic="/usr/share/john/password.lst"
+      	rutaDic="/usr/share/john/password.lst"
       ;;
     esac
 
-    if [[ -e "$ruta1" && -f "$ruta1" && -s "$ruta1" && -r "$ruta1" ]]; then
+    if [[ -e "$rutaDic" && -f "$rutaDic" && -s "$rutaDic" && -r "$rutaDic" ]]; then
     	hashcat -m "$1" --outfile resultadoHashcat.txt -a 0 temp_hash.txt "$rutaDic" --show
+    	#echo "" > resultadoHashcat.txt
     else
-    	hashcat -m "$1" --outfile resultadoHashcat.txt -a 0 temp_hash.txt /usr/share/john/password.lst --show
+    	echo "No se pudo ejecutar hashcat. Error al leer el diccionario."
     fi
 
 }
@@ -204,10 +190,10 @@ function opcionSaludo(){
 
 
 function opcionLog(){
-  opcion=1
-  until [ $opcion = "3" ]
+  opcionlog=1
+  until [ $opcionlog = "3" ]
   do
-    printf "\n\033[0;31m Análisis de Logs\033[0m\n"
+    printf "\n\033[0;31mAnálisis de Logs\033[0m\n"
     printf "=======================================\n"
     printf "\033[0;32m 1.\033[0m Log de Nginx\n"
     printf "\033[0;32m 2.\033[0m Log de Apache\n"
@@ -218,9 +204,9 @@ function opcionLog(){
     mapfile -t logs < <(find / -type f -name "nginx.log" 2>/dev/null) # para qe me guarde el resultado en un array
 
 
-    case $opcion in
+    case $opcionlog in
       "1")#Opción Nginx
-       printf "\n\033[0;31m Logs de Nginx\033[0m\n"
+       printf "\n\033[0;31mLogs de Nginx\033[0m\n"
        buscarArchivo "nginx.log"
        read -p "Escribe la ruta del archivo: " ruta1
         # Valido que exista, que es un archivo, que tiene contenido, que tenga permisos de lectura
@@ -234,8 +220,9 @@ function opcionLog(){
         fi
         ;;
       "2")#Opción Apache
-       printf "\n\033[0;31m Logs de Apache\033[0m\n"
+       printf "\n\033[0;31mLogs de Apache\033[0m\n"
        buscarArchivo "apache.log"
+       buscarArchivo "auth.log"
        read -p "Escribe la ruta del archivo: " ruta1
         # Valido que exista, que es un archivo, que tiene contenido, que tenga permisos de lectura
         #Validar que sea o .log o .txt? && "$ruta1" =~ \.(log|txt)$
@@ -252,16 +239,18 @@ function opcionLog(){
       "3")echo "Volviendo al menú principal"
         ;;
       *) echo "Opción incorrecta"
+      	opcionlog=-1
         ;;
     esac
   done
 }
+
 function opcionDic(){
   #Comprobar que están instalados
-  opcion=1
-  until [ $opcion = "4" ]
+  opciondic=1
+  until [ $opciondic = "4" ]
   do
-    printf "\n\033[0;31m Ataque de diccionario\033[0m\n"
+    printf "\n\033[0;31mAtaque de diccionario\033[0m\n"
     printf "=======================================\n"
     printf "\033[0;32m 1.\033[0m Crear hash\n"
     printf "\033[0;32m 2.\033[0m Ataque de diccionario con John the Ripper\n"
@@ -269,7 +258,7 @@ function opcionDic(){
     printf "\033[0;32m 4.\033[0m Volver atrás\n \n"
     read -p "Elige una opción: " opcion
 
-    case $opcion in
+    case $opciondic in
       "1")#Crear hash
       printf "\n\033[0;31mCrear hash\033[0m\n"
       read -p "Introduce el texto --> " texto
@@ -283,7 +272,7 @@ function opcionDic(){
             if [[ ${#concide[@]} -eq 1 && ${concide[0]} != "" ]]; then
               cond1=false
             else
-              echo "Opcion incorrecta. Vuelve a intentarlo.\n Quizas estes buscando: "
+              printf "Opcion incorrecta. Vuelve a intentarlo.\nQuizas estes buscando: \n"
               mapfile -t posibilidades < <(printf '%s\n' "${paraCifrar[@]}" | grep -i -- "${algoritmo}" || true)
 
               if [[ ${#posibilidades[@]} -eq 0 ]]; then
@@ -313,7 +302,7 @@ function opcionDic(){
             if [[ ${#concide[@]} -eq 1 && ${concide[0]} != "" ]]; then
               cond1=false
             else
-              echo "Opcion incorrecta. Vuelve a intentarlo.\n Quizas estes buscando: "
+              printf "Opcion incorrecta. Vuelve a intentarlo.\nQuizas estes buscando: \n"
               mapfile -t posibilidades < <(printf '%s\n' "${formatos_john[@]}" | grep -i -- "${algoritmo}" || true)
 
               if [[ ${#posibilidades[@]} -eq 0 ]]; then
@@ -327,18 +316,20 @@ function opcionDic(){
 
         parteJohn $algoritmo
 
-        john --show --pot=".resutladoJohn.pot" --format="$algoritmo"  temp_hash.txt
-        grep  -F -- "$miHash" resutladoJohn.pot | awk -F ":" '{print $2}' | uniq
 
-        #grep  -F -- "$miHash" .resutladoJohn.pot
+        #john --show --pot=".resultadoJohn.pot" --format="$algoritmo"  temp_hash.txt
+        #grep  -F -- "$mihash" resultadoJohn.pot | awk -F ":" '{print $2}' | uniq
+
+        #grep  -F -- "$mihash" .resultadoJohn.pot
         #recuperar la contraseña
 
-# Eliminar el archivo temoral del hash
+	# Eliminar el archivo temoral del hash
 	rm temp_hash.txt
 
         ;;
       "3")#Ataque de diccionario con Hashcat
-      printf "\n\033[0;31m Ataque de diccionario con Hashcat\033[0m\n"
+      #el kali de clase es v7.1.2 -hh ara que saque los modos
+      printf "\n\033[0;31mAtaque de diccionario con Hashcat\033[0m\n"
       read -p "Introduce el hash --> " mihash
       echo "$mihash" > temp_hash.txt
       hashid "$mihash"
@@ -361,14 +352,14 @@ function opcionDic(){
             if [[ ${#concide[@]} -eq 1 && ${concide[0]} != "" ]]; then
               cond1=false
             else
-              echo "Opcion incorrecta. Vuelve a intentarlo.\n Quizas estes buscando: "
+              printf "Opcion incorrecta. Vuelve a intentarlo.\nQuizas estes buscando: \n"
               mapfile -t posibilidades < <( hashcat --help \
   | awk '/- \[ Hash modes \] -/{flag=1;next}/^- \[/{flag=0}flag' \
   | grep -E '^[[:space:]]*[0-9]+' \
   | grep -i "$algoritmo"  )
 
               if [[ ${#posibilidades[@]} -eq 0 ]]; then
-              	printf '%s\n' "${hashcat --help | awk '/- \[ Hash modes \] -/{flag=1;next}/^- \[/{flag=0}flag' | grep -E '^[[:space:]]*[0-9]+']}"
+              	printf '%s\n' "$(hashcat --help | awk '/- \[ Hash modes \] -/{flag=1;next}/^- \[/{flag=0}flag' | grep -E '^[[:space:]]*[0-9]+')"
               else
                 printf '%s\n' "${posibilidades[@]}"
               fi
@@ -377,12 +368,19 @@ function opcionDic(){
         done
 
       parteHashcat $algoritmo
+
       #hashcat -m 100 --outfile resultadoHashcat.txt -a 0 temp_hash.txt /usr/share/john/password.lst --show
-      grep  -F -- "$miHash" resultadoHashcat.txt | awk -F ":" '{print $2}' | uniq
+
+
+      echo "Si se encontró algo, aparecera a continuación."
+      grep  -E "$mihash" resultadoHashcat.txt | awk -F ":" '{print $2}' | uniq
+
+
         ;;
       "4")echo "Volviendo al menú principal"
         ;;
       *) echo "Opción incorrecta"
+      	opciondic=-1
         ;;
     esac
 
@@ -394,8 +392,8 @@ function opcionDic(){
 
 function opcionFinger(){
   regexIp='^((25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])\.){3}(25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])(/(3[0-2]|[12]?[0-9]))?$'
-  opcion=1
-  until [ $opcion = "4" ]
+  opcionfinger=1
+  until [ $opcionfinger = "4" ]
   do
     printf "\n\033[0;31mFingerprinting\033[0m\n"
     printf "=======================================\n"
@@ -403,21 +401,42 @@ function opcionFinger(){
     printf "\033[0;32m 2.\033[0m Con nmap\n"
     printf "\033[0;32m 3.\033[0m Lanzar script (con nmap)\n"
     printf "\033[0;32m 4.\033[0m Volver atrás\n"
-    read -p "Elige una opción: " opcion
+    read -p "Elige una opción: " opcionfinger
 
 
-    case $opcion in
+    case $opcionfinger in
       "1")
       #Con fping
       printf "\n\033[0;31mFingerprinting con fping\033[0m\n"
       read -p "Introduce la IP --> " miIp
 
       if [[ $miIp =~ $regexIp ]]; then
+      	atrFping="-a "
 
-      read -p "Introduce atributos adiconales correctamente --> " atrFping
-      #validar como los algoritmos o no hace falta?
+      	read -p "¿Qieres mostrar los objetivos que estan disponibles? (S/n) --> " eleccion
 
-      fping $atrFping  -g "$miIp" 2>/dev/null | grep -i "alive"
+      	if [[ $eleccion =~ ^(n|N)$ ]]; then
+      		atrFping=""
+      	fi
+
+      	read -p "¿Qieres forzar IPv4? (s/N) --> " eleccion
+
+      	if [[ $eleccion =~ ^(s|S)$ ]]; then
+      		atrFping+="-4 "
+      	else
+      		#-4 y -6 son excluyentes.
+      		read -p "¿Qieres forzar IPv6? (s/N) --> " eleccion
+
+      		if [[ $eleccion =~ ^(s|S)$ ]]; then
+      			atrFping+="-6 "
+      		fi
+
+      	fi
+
+
+
+      	#echo $atrFping
+      	fping $atrFping  -g "$miIp" 2>/dev/null #| grep -i "alive"
 
 
 
@@ -435,10 +454,11 @@ function opcionFinger(){
       if [[ $miIp =~ $regexIp ]]; then
 
 
-      nmap "$miIp" > "${miIp}.txt"
+      	sudo nmap "$miIp" | grep -i "open" > "${miIp}.txt" #guardo solo lo importante
 
-      echo "Puertos aiertos de la IP: $miIp"
-      grep -i "open"  "${miIp}.txt"
+      	echo "Puertos aiertos de la IP: $miIp"
+      	#grep -i "open"  "${miIp}.txt"
+      	cat "${miIp}.txt"
 
       else
       	echo "No era una IP válida."
@@ -448,8 +468,26 @@ function opcionFinger(){
       "3")
       #Con scrit y nmap
       printf "\n\033[0;31mFingerprinting con script y nmap\033[0m\n"
-      echo "Sin desarrollar"
-      # vale, no he entendido que se pide...
+      #/usr/share/nmap/scripts/
+
+      read -p "Introduce la IP --> " miIp
+
+      if [[ $miIp =~ $regexIp ]]; then
+
+      	read -p "Introduce la ruta del script (suelen estar en /usr/share/nmap/scripts/) --> " miScript
+
+      	if [[ -e "$miScript" && -f "$miScript" ]]; then
+      		sudo nmap --script "$miScript" "$miIp"
+
+      	else
+      		echo "No era una ruta válida."
+      	fi
+
+
+      else
+      	echo "No era una IP válida."
+      fi
+
 
 
         ;;
@@ -458,6 +496,7 @@ function opcionFinger(){
         ;;
       *)
       echo "Opción incorrecta"
+      	opcionfinger=-1
         ;;
     esac
 
@@ -467,7 +506,8 @@ function opcionFinger(){
 }
 
 function opcionFoot(){
-  until [ $opcion = "5" ]
+  opcionfoot=1
+  until [ $opcionfoot = "5" ]
   do
     printf "\n\033[0;31mFootprinting\033[0m\n"
     printf "=======================================\n"
@@ -476,12 +516,12 @@ function opcionFoot(){
     printf "\033[0;32m 3.\033[0m Metadatos de fichero específico\n"
     printf "\033[0;32m 4.\033[0m (Extra) Editar metadatos\n"
     printf "\033[0;32m 5.\033[0m Volver atrás\n"
-    read -p "Elige una opción: " opcion
+    read -p "Elige una opción: " opcionfoot
 
 
 # mirar tambien subdirectorios con -r?
 #no mostrar los unreadbles con grep?
-    case $opcion in
+    case $opcionfoot in
       "1")
       printf "\n\033[0;31mMetadatos de los ficheros de la ruta actual\033[0m\n"
       exiftool .
@@ -500,10 +540,10 @@ function opcionFoot(){
       printf "\n\033[0;31mMetadatos de fichero específico\033[0m\n"
       read -p "Escribe la ruta del archivo: " ruta1
         # Valido que exista, que es un archivo, que tenga permisos de lectura
-        if [[ -e "$ruta1" && -f "$ruta1" &&  -r "$ruta1"  && -w "$rura1" ]]; then
+        if [[ -e "$ruta1" && -f "$ruta1" &&  -r "$ruta1" ]]; then
         	exiftool "$ruta1"
         else
-        	echo "Error: Comprueba la ruta del archivo. Recuerda que debes tener permisos de lectura y escritura."
+        	echo "Error: Comprueba la ruta del archivo. Recuerda que debes tener permisos de lectura."
         fi
         ;;
       "4")
@@ -512,8 +552,8 @@ function opcionFoot(){
       #pero no se cual es esl tag que necsito
       printf "\n\033[0;31m(Extra) Editar metadatos\033[0m\n"
       read -p "Escribe la ruta del archivo: " ruta1
-        # Valido que exista, que es un archivo, que tenga permisos de lectura
-      if [[ -e "$ruta1" && -f "$ruta1" &&  -r "$ruta1"  ]]; then
+        # Valido que exista, que es un archivo, que tenga permisos de lectura. Permiso de ecritura me daba problemas && -w "$rura1"
+      if [[ -e "$ruta1" && -f "$ruta1" &&  -r "$ruta1" ]]; then
 
       #parte elegir un atributo
       #exiftool -listw
@@ -538,13 +578,13 @@ function opcionFoot(){
             if [[ ${#concide[@]} -eq 1 && ${concide[0]} != "" ]]; then
               cond1=false
             else
-              echo "Opcion incorrecta. Vuelve a intentarlo.\n Quizas estes buscando: "
+              printf "Opcion incorrecta. Vuelve a intentarlo.\nQuizas estes buscando: \n"
               mapfile -t posibilidades < <(printf '%s\n' "${atrTodos[@]}" | grep -i -- "${atrMod}" || true)
 
               if [[ ${#posibilidades[@]} -eq 0 ]]; then
-              	printf '%s\n' "${atrTodos[@]}"
+              	printf '%s\n' "${atrTodos[@]}"   | head -n 30 # que sino salen muchos
               else
-                printf '%s\n' "${posibilidades[@]}"
+                printf '%s\n' "${posibilidades[@]}" | head -n 30
               fi
 
             fi
@@ -555,11 +595,12 @@ function opcionFoot(){
 
         read -p "¿Seuro qué quieres cambiar el valor del metadato $atrMod con \"$atrModVal\"? (s/N)--> " confirmar
 
+        # Solo intento modificar si ponen s o S, en cualquir otro caso se cancela.
         if [[ $confirmar =~ ^(s|S)$ ]]; then
         	exiftool "-${atrMod}=${atrModVal}" -overwrite_original "$ruta1"
 
         else
-        	echo "Se cancelo la modificación"
+        	echo "Se canceló la modificación"
 
         fi
 
@@ -574,6 +615,7 @@ function opcionFoot(){
       echo "Volviendo al menú principal"
         ;;
       *) echo "Opción incorrecta"
+      	opcionfoot=-1
         ;;
     esac
       done
@@ -581,37 +623,76 @@ function opcionFoot(){
 }
 
 function opcionFUZZ(){
-  opcion=1
-  until [ $opcion = "4" ]
+  opcionffuz=1
+  until [ $opcionffuz = "4" ]
   do
     printf "\n\033[0;31mFuzzing\033[0m\n"
-    printf "=======================================\n"
-    printf "\n\n\033[0;321.\m033[0m Fuzzing con Wfuzz\n
-    \033[0;322.\m033[0m Fuzzing con ffuf\n
-    \033[0;323.\m033[0m Nikto\n
-    \033[0;324.\m033[0m Volver atrás\n"
-    read -p "Elige una opción:" opcion
+	printf "=======================================\n"
+	printf "\033[0;32m 1.\033[0m Fuzzing con Wfuzz\n"
+	printf "\033[0;32m 2.\033[0m Fuzzing con ffuf\n"
+	printf "\033[0;32m 3.\033[0m Nikto\n"
+	printf "\033[0;32m 4.\033[0m Volver atrás\n"
+	read -p "Elige una opción: " opcionffuz
 
-    case $opcion in
-      "1")printf "\n\033[0;31mFuzzing con Wfuzz\033[0m\nLos resultados se guardaran en resultadoWfuzz.txt\n"
-      read -p "Escribe la URL del objetivo: " ruta1
 
-      wfuzz -c -z file,/usr/share/wfuzz/wordlist/general/common.txt --sc 200,301,302,401,403,500,404   -u "${ruta1%/}/FUZZ"   -f "resultadoWfuzz.txt,txt"   | tee "resultadoWfuzz.log"
+    #hay que pedir el "dicconario"?
+    wordlistFuzz="/usr/share/dirbuster/wordlists/directory-list-2.3-medium.txt"
+    case $opcionffuz in
+      "1")
+      printf "\n\033[0;31mFuzzing con Wfuzz\033[0m\nLos resultados se guardaran en resultadoWfuzz.txt\n"
+      read -p "Escribe la URL del objetivo (http://x.x.x.x): " ruta1
+      read -p "Escribe la ruta del diccionario que quieras utilizar, sino, se usara el de por defecto: " dicfuzz
+
+      if [[ -n $ruta1 ]]; then
+
+      	if [[ -e "$dicfuzz" && -f "$dicfuzz"  ]]; then
+      		wfuzz -c  --sc 200,301,302,401,403,500,404   -u "${ruta1%/}/FUZZ"   -w "$dicfuzz"  -t 200 -oF "resultadoWfuzz.txt"
+      	else
+      		wfuzz -c  --sc 200,301,302,401,403,500,404   -u "${ruta1%/}/FUZZ"   -w "$wordlistFuzz" -t 200  -oF "resultadoWfuzz.txt"
+      	fi
+
+      else
+      	printf "Error: no habias escrito nada para la ruta"
+      fi
+
+
         ;;
-      "2")printf "\n\033[0;31mFuzzing con ffuf\033[0m\nLos resultados se guardaran en resultadoffuf.txt\n"
+      "2")
+      printf "\n\033[0;31mFuzzing con ffuf\033[0m\nLos resultados se guardaran en resultadoffuf.txt\n"
       read -p "Escribe la URL del objetivo: " ruta1
+      read -p "Escribe la ruta del diccionario que quieras utilizar, sino, se usara el de por defecto: " dicfuzz
 
-      ffuf -c -w /usr/share/wfuzz/wordlist/general/common.txt -mc 200,301,302,401,403,500,404   -u "${ruta1%/}/FUZZ"   -o "resultadoffuf.txt,txt"   | tee "resultadoffuf.log"
+
+      if [[ -n $ruta1 ]]; then
+
+      	if [[ -e "$dicfuzz" && -f "$dicfuzz"  ]]; then
+      		ffuf -c -u "${ruta1%/}/FUZZ" -w "$dicfuzz"   -o "resultadoffuf.txt"
+      	else
+      		ffuf -c -u "${ruta1%/}/FUZZ" -w "$wordlistFuzz"   -o "resultadoffuf.txt"
+      	fi
+
+      else
+      	printf "Error: no habias escrito nada para la ruta"
+      fi
+
         ;;
-      "3")printf "\n\033[0;31mNikto\033[0m\nLos resultados se guardaran en resultadoNikto.txt\n"
+      "3")
+      printf "\n\033[0;31mNikto\033[0m\nLos resultados se guardaran en resultadoNikto.txt\n"
       read -p "Escribe el host/URL del objetivo: " ruta1
 
-      nikto -h "$ruta1" -o resultadoNikto.txt
+      if [[ -n $ruta1 ]]; then
+      	nikto -h "$ruta1" -o resultadoNikto.txt
+      else
+      	printf "Error: no habias escrito nada para la ruta"
+      fi
+
+
         ;;
       "4")
       echo "Volviendo al menú principal"
         ;;
       *) echo "Opción incorrecta"
+      opcionffuz=-1
         ;;
     esac
   done
@@ -650,6 +731,7 @@ function main(){
       "7")echo "Sliendo..."
         ;;
       *) echo "Opción incorrecta"
+      	opcion=-1
         ;;
       esac
   done
@@ -658,7 +740,6 @@ function main(){
 instalacionPaquetes
 main
 
-#Para ir probando los modulos específicos
 #opcionLog
 #opcionDic
 #opcionFinger
