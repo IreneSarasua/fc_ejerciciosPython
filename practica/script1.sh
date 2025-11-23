@@ -28,7 +28,7 @@ function buscarArchivo(){
        	echo "$ruta"
        done
        else
-       	echo "No se encontraron archichivos con nombre ${1}"
+       	echo "No se encontraron archivos con nombre ${1}"
        fi
 }
 
@@ -132,10 +132,14 @@ function parteJohn(){
     esac
 
     if [[ -e "$rutaDic" && -f "$rutaDic" && -s "$rutaDic" && -r "$rutaDic" ]]; then
+    	#Si no existe el .pot da problemas
+    	if [[ ! -e "resultadoJohn.pot" ]] ;then
+    		touch "resultadoJohn.pot"
+    	fi
     	john --wordlist="$rutaDic" --format="$1" --pot="resultadoJohn.pot" temp_hash.txt
     	echo "" > resultadoJohn.pot
     else
-    	echo "No se pudo ejecutar hashcat. Error al leer el diccionario."
+    	echo "No se pudo ejecutar john. Error al leer el diccionario."
     fi
 
 }
@@ -183,7 +187,7 @@ function parteHashcat(){
 function opcionSaludo(){
   figlet -f standard.flf  -c Holi
 
-  printf "\n\n\033[0;32m %s \n\n\033[0;36m%s\033[0m\n" "$(toilet -f future "Hecho por Irene Sarasua" -F border)" "$(toilet -f future "No usar para fines ilícitos.")"
+  printf "\n\n\033[0;32m %s \n\n\033[0;36m%s\033[0m\n" "$(toilet -f future "Hecho por Irene Sarasua" -F border)" "$(toilet -f future "No usar para fines ilicitos.")"
 }
 
 
@@ -256,7 +260,7 @@ function opcionDic(){
     printf "\033[0;32m 2.\033[0m Ataque de diccionario con John the Ripper\n"
     printf "\033[0;32m 3.\033[0m Ataque de diccionario con Hashcat\n"
     printf "\033[0;32m 4.\033[0m Volver atrás\n \n"
-    read -p "Elige una opción: " opcion
+    read -p "Elige una opción: " opciondic
 
     case $opciondic in
       "1")#Crear hash
@@ -639,28 +643,28 @@ function opcionFUZZ(){
     wordlistFuzz="/usr/share/dirbuster/wordlists/directory-list-2.3-medium.txt"
     case $opcionffuz in
       "1")
-      printf "\n\033[0;31mFuzzing con Wfuzz\033[0m\nLos resultados se guardaran en resultadoWfuzz.txt\n"
+      printf "\n\033[0;31mFuzzing con Wfuzz\033[0m\nLos resultados se guardarán en resultadoWfuzz.txt\n"
       read -p "Escribe la URL del objetivo (http://x.x.x.x): " ruta1
       read -p "Escribe la ruta del diccionario que quieras utilizar, sino, se usara el de por defecto: " dicfuzz
 
       if [[ -n $ruta1 ]]; then
 
       	if [[ -e "$dicfuzz" && -f "$dicfuzz"  ]]; then
-      		wfuzz -c  --sc 200,301,302,401,403,500,404   -u "${ruta1%/}/FUZZ"   -w "$dicfuzz"  -t 200 -oF "resultadoWfuzz.txt"
+      		wfuzz -c  --sc 200,301,302,401,403,500,404   -u "${ruta1%/}/FUZZ"   -w "$dicfuzz"  -f "resultadoWfuzz.txt"
       	else
-      		wfuzz -c  --sc 200,301,302,401,403,500,404   -u "${ruta1%/}/FUZZ"   -w "$wordlistFuzz" -t 200  -oF "resultadoWfuzz.txt"
+      		wfuzz -c  --sc 200,301,302,401,403,500,404   -u "${ruta1%/}/FUZZ"   -w "$wordlistFuzz"  -f "resultadoWfuzz.txt"
       	fi
 
       else
-      	printf "Error: no habias escrito nada para la ruta"
+      	printf "Error: no habías escrito nada para la ruta"
       fi
 
 
         ;;
       "2")
-      printf "\n\033[0;31mFuzzing con ffuf\033[0m\nLos resultados se guardaran en resultadoffuf.txt\n"
+      printf "\n\033[0;31mFuzzing con ffuf\033[0m\nLos resultados se guardarán en resultadoffuf.txt\n"
       read -p "Escribe la URL del objetivo: " ruta1
-      read -p "Escribe la ruta del diccionario que quieras utilizar, sino, se usara el de por defecto: " dicfuzz
+      read -p "Escribe la ruta del diccionario que quieras utilizar, si no, se usara el de por defecto: " dicfuzz
 
 
       if [[ -n $ruta1 ]]; then
@@ -672,18 +676,18 @@ function opcionFUZZ(){
       	fi
 
       else
-      	printf "Error: no habias escrito nada para la ruta"
+      	printf "Error: no habías escrito nada para la ruta"
       fi
 
         ;;
       "3")
-      printf "\n\033[0;31mNikto\033[0m\nLos resultados se guardaran en resultadoNikto.txt\n"
+      printf "\n\033[0;31mNikto\033[0m\nLos resultados se guardarán en resultadoNikto.txt\n"
       read -p "Escribe el host/URL del objetivo: " ruta1
 
       if [[ -n $ruta1 ]]; then
       	nikto -h "$ruta1" -o resultadoNikto.txt
       else
-      	printf "Error: no habias escrito nada para la ruta"
+      	printf "Error: no habías escrito nada para la ruta"
       fi
 
 
@@ -745,13 +749,4 @@ main
 #opcionFinger
 #opcionFoot
 #opcionFUZZ
-
-
-
-
-
-
-
-
-
 
