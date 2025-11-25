@@ -1,5 +1,4 @@
 #Ejercicios String
-from re import match
 
 
 def ej1():
