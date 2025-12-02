@@ -9,8 +9,8 @@ def crear_parser():
     parser.add_argument("-m", dest="mac", help="Direccion MAC")
     parser.add_argument("-i", dest="interfaz", help="Interfaz de red")
     (opciones) = parser.parse_args()
-    # if not opciones.clase:
-    #     parser.error("Introduce una clase de IP valida")
+    if not opciones.mac or opciones.interfaz:
+         parser.error("Introduce una argumentos validos")
     return opciones
 
 if __name__ == '__main__':
