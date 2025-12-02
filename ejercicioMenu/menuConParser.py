@@ -2,6 +2,10 @@ import optparse
 from ejercicioMenu import ip_aleatoria2
 import argparse
 
+
+
+
+
 # parser= optparse.OptionParser()
 # parser.add_option("-c", "--clase", dest="opt_arg1", help="Clase para la IP aletoria (A, B o C)")
 #
