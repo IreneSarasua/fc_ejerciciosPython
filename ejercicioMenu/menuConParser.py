@@ -29,7 +29,7 @@ import argparse
 def crear_parser():
     parser = argparse.ArgumentParser()
     parser.add_argument("-c", "--clase", dest="clase", help="Clase de IP {A/a, B/b o C/c}.")
-    (opciones) = parser.parse_args()
+    opciones = parser.parse_args()
     if opciones.clase not in ["A", "B", "C", "a", "b", "c"]:
         parser.error("Introduce una clase de IP valida")
     return opciones
