@@ -29,5 +29,7 @@ if __name__ == '__main__':
         lista_rutas = funciones.ruta_absoluta(opciones.ruta)
         funciones2.desencriptar(lista_rutas, clave)
 
+    #pyinstaller --onefile script.py
+
 
 

