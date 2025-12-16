@@ -106,7 +106,7 @@ def ej6(ruta):
 
         for ruta1 in os.listdir(ruta):
             fichero.write(f'{ruta1}:{calcular_hash_fichero(ruta1)}')
-        fichero.close()
+        #fichero.close()
 
 def ej6_1():
     ruta = input('Introduce la ruta del fichero: ')
