@@ -34,8 +34,9 @@ def cifrar_contrasenia_hex(texto, algoritmo):
     #     case _:
     #         return ""
     try:
-        h = hashlib.new(algoritmo, texto.strip("\n").encode('utf-8'))
-        return h.hexdigest()
+        h = hashlib.new(algoritmo, texto.strip("\n").encode('utf-8')).hexdigest()
+        h_con_salt = hashlib.new(algoritmo, salt() + texto.strip("\n").encode('utf-8')).hexdigest()
+        return h_con_salt
     except:
         print("Error")
 
@@ -97,7 +98,7 @@ def calcular_hash_fichero(ruta):
     #¿Por qué tenemos que abrir el archivo en modo binario?
     #¿Qué ocurre si cambiamos una letra del contenido del fichero? Que el hash cambia
     #¿Si cambiáramos el nombre del fichero pero no el contenido, obtendríamos el mismo hash? si
-    #¿Se puede recuperar el contenido original a partir del hash? Na
+    #¿Se puede recuperar el contenido original a partir del hash? No
     #¿Por qué SHA-256 es mejor que MD5? Por la longitud del hash generado
 
 def ej6(ruta):
@@ -108,7 +109,23 @@ def ej6(ruta):
         fichero.close()
 
 def ej6_1():
-    print()
+    ruta = input('Introduce la ruta del fichero: ')
+    hash_fichero = calcular_hash_fichero(ruta)
+    archivo= open('mis_hash.txt', 'r')
+    for linea in archivo.readlines():
+        if f'{ruta}:{hash_fichero}' in linea:
+            print("Integridad verificada")
+            return True
+        if  hash_fichero in linea:
+            print("Integridad verificada")
+            return True
+    return False
+
+
+def salt():
+    return  os.urandom(16)
+
+
 
 
 
